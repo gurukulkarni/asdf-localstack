@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+current_script_path=${BASH_SOURCE[0]}
+plugin_dir=$(dirname "$(dirname "$current_script_path")")
+
+# shellcheck source=./lib/utils.bash
+source "${plugin_dir}/lib/utils.bash"
+
+mkdir -p "$ASDF_DOWNLOAD_PATH"
+
+os=$(uname -s | tr '[:upper:]' '[:lower:]')
+arch=$(uname -m)
+
+case "$arch" in
+    x86_64)
+        arch="amd64"
+        ;;
+    arm64|aarch64)
+        arch="arm64"
+        ;;
+    *)
+        echo "Unsupported architecture: $arch"
+        exit 1
+        ;;
+esac
+
+case "$os" in
+    linux|darwin|windows)
+        ;;
+    *)
+        echo "Unsupported OS: $os"
+        exit 1
+        ;;
+esac
+
+if [ "$os" = "windows" ]; then
+    ext="zip"
+else
+    ext="tar.gz"
+fi
+
+release_file="localstack-cli-${ASDF_INSTALL_VERSION}-${os}-${arch}-onefile.${ext}"
+
+# Download tar.gz file to the download directory
+download_release "$ASDF_INSTALL_VERSION" "$release_file"
+
+#  Extract contents of tar.gz file into the download directory
+if [ "$os" = "windows" ]; then
+    echo "Unzippping $release_file for windows"
+    unzip "$release_file" -d "$ASDF_DOWNLOAD_PATH" || fail "Could not extract $release_file"
+else
+    echo "extracting $release_file"
+    tar -xzf "$release_file" -C "$ASDF_DOWNLOAD_PATH" || fail "Could not extract $release_file"
+fi
+
+echo "extracted $release_file for os $os to $ASDF_DOWNLOAD_PATH"
+
+# Remove the tar.gz file since we don't need to keep it
+rm "$release_file"
